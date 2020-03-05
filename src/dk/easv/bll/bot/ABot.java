@@ -3,6 +3,7 @@ package dk.easv.bll.bot;
 import dk.easv.bll.game.GameState;
 import dk.easv.bll.game.IGameState;
 import dk.easv.bll.move.IMove;
+import dk.easv.bll.move.Move;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -59,9 +60,9 @@ public class ABot implements IBot {
             backPropagation(nodeToExplore, result);
         }
         //Need to do a move.
-        //Node winnerNode = rootNode.getChildWithMaxScore();
+        Node proposedNode = uct.highestUCTNode(root);
 
-        return null;
+        return extractMove(root, proposedNode);
     }
 
     /**
@@ -75,7 +76,7 @@ public class ABot implements IBot {
         Node node = root;
         while (node.isLeaf() && !node.isTerminal()) {
             //while (node.getChildrenArray().size() > 0) {
-            node = uct.highestUCTNode(node, root);
+            node = uct.highestUCTNode(node);
         }
         return node;
     }
@@ -114,8 +115,13 @@ public class ABot implements IBot {
             tempNode.getParent().setScore(Integer.MIN_VALUE);
             return 3 - botPlayerNo;
         }
-        //While the game is ongoing.
+        //While the game is ongoing. Change player and play randomly until game over.
         while (!tempNode.isTerminal()) {
+            if (botPlayerNo == 0) {
+                botPlayerNo = 1;
+            } else {
+                botPlayerNo = 0;
+            }
             randomizedPlay(tempState);
         }
         return (tempState.getMoveNumber() + 1) % 2;
@@ -147,6 +153,19 @@ public class ABot implements IBot {
             }
             tempNode = tempNode.getParent();
         }
+    }
+
+    private IMove extractMove(Node root, Node child) {
+        String[][] rootBoard = root.getState().getField().getBoard();
+        String[][] childBoard = child.getState().getField().getBoard();
+        for (int i = 0; i < rootBoard.length; i++) {
+            for (int k = 0; k < rootBoard[i].length; k++) {
+                if (!rootBoard[i][k].equals(childBoard[i][k])) {
+                    return new Move(i, k);
+                }
+            }
+        }
+        return null;
     }
 
     private void makeMove(IGameState state, IMove move) {
@@ -328,8 +347,8 @@ public class ABot implements IBot {
             return (nodeScore / (double) nodeVisitCount) + Math.sqrt(2) * (Math.sqrt(Math.log(rootVisit) / (double) nodeVisitCount));
         }
 
-        public Node highestUCTNode(Node node, Node rootNode) {
-            return Collections.max(node.getChildrenArray(), Comparator.comparing(c -> uctVal(c.getScore(), c.getVisitCount(), rootNode.getVisitCount())));
+        public Node highestUCTNode(Node node) {
+            return Collections.max(node.getChildrenArray(), Comparator.comparing(c -> uctVal(c.getScore(), c.getVisitCount(), node.getVisitCount())));
         }
     }
 
